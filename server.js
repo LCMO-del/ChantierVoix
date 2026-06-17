@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import analyzeHandler from './api/analyze.js';
+import logHandler from './api/log.js';
 
 dotenv.config();
 
@@ -23,7 +24,8 @@ app.post('/api/analyze', async (req, res) => {
 
 // Nouvelle route pour la télémétrie locale
 const telemetryFile = path.join(__dirname, 'telemetry.json');
-app.post('/api/log', (req, res) => {
+app.post('/api/log', async (req, res) => {
+  // 1. Sauvegarder localement dans telemetry.json pour le développement local
   try {
     const newEvent = {
       timestamp: new Date().toISOString(),
@@ -31,89 +33,20 @@ app.post('/api/log', (req, res) => {
     };
 
     let logs = [];
-    // Lire le fichier existant
     if (fs.existsSync(telemetryFile)) {
       const fileData = fs.readFileSync(telemetryFile, 'utf-8');
       if (fileData) {
         logs = JSON.parse(fileData);
       }
     }
-
-    // Ajouter le nouvel événement
     logs.push(newEvent);
-
-    // Sauvegarder dans le fichier
     fs.writeFileSync(telemetryFile, JSON.stringify(logs, null, 2));
-
-    // Envoyer à Airtable si configuré
-    const airtablePat = process.env.AIRTABLE_PAT;
-    const airtableBaseId = process.env.AIRTABLE_BASE_ID;
-    const airtableTableName = process.env.AIRTABLE_TABLE_NAME || 'Telemetry';
-
-    if (airtablePat && airtableBaseId) {
-      const allFields = {
-        'Timestamp': newEvent.timestamp,
-        'Session ID': newEvent.session_id || '',
-        'Event Name': newEvent.event_name || '',
-        'Client': newEvent.client || '',
-        'Chantier': newEvent.chantier || '',
-        'Adresse': newEvent.adresse || '',
-        'Corps de métier': newEvent.corps_metier || '',
-        'Total HT': newEvent.total_ht || '',
-        'Total TTC': newEvent.total_ttc || '',
-        'Event Data': JSON.stringify(newEvent.event_data || {})
-      };
-
-      const basicFields = {
-        'Timestamp': newEvent.timestamp,
-        'Session ID': newEvent.session_id || '',
-        'Event Name': newEvent.event_name || '',
-        'Event Data': JSON.stringify({
-          client: newEvent.client,
-          chantier: newEvent.chantier,
-          adresse: newEvent.adresse,
-          corps_metier: newEvent.corps_metier,
-          total_ht: newEvent.total_ht,
-          total_ttc: newEvent.total_ttc,
-          ...newEvent.event_data
-        })
-      };
-
-      const sendToAirtable = async (fields, isFallback = false) => {
-        try {
-          const response = await fetch(`https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(airtableTableName)}`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${airtablePat}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ records: [{ fields }] })
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            if (!isFallback && (response.status === 422 || errText.includes('UNKNOWN_FIELD_NAME') || errText.includes('invalid_field'))) {
-              console.warn('[Airtable] Colonnes avancées manquantes. Passage au mode de secours (enregistrement dans Event Data).');
-              await sendToAirtable(basicFields, true);
-            } else {
-              console.error(`[Airtable Error] Status ${response.status}: ${errText}`);
-            }
-          } else {
-            console.log(`[Airtable] Log enregistré avec succès${isFallback ? ' (mode secours)' : ''}.`);
-          }
-        } catch (err) {
-          console.error('[Airtable Connection Error]:', err);
-        }
-      };
-
-      sendToAirtable(allFields);
-    }
-
-    res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Erreur écriture log:', error);
-    res.status(500).json({ error: 'Erreur interne' });
+    console.error('Erreur écriture log locale:', error);
   }
+
+  // 2. Déléguer au handler de base (qui gère l'envoi Airtable)
+  await logHandler(req, res);
 });
 
 const PORT = process.env.PORT || 3001;
