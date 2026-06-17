@@ -45,6 +45,44 @@ app.post('/api/log', (req, res) => {
     // Sauvegarder dans le fichier
     fs.writeFileSync(telemetryFile, JSON.stringify(logs, null, 2));
 
+    // Envoyer à Airtable si configuré
+    const airtablePat = process.env.AIRTABLE_PAT;
+    const airtableBaseId = process.env.AIRTABLE_BASE_ID;
+    const airtableTableName = process.env.AIRTABLE_TABLE_NAME || 'Telemetry';
+
+    if (airtablePat && airtableBaseId) {
+      fetch(`https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(airtableTableName)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${airtablePat}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          records: [
+            {
+              fields: {
+                'Timestamp': newEvent.timestamp,
+                'Session ID': newEvent.session_id || '',
+                'Event Name': newEvent.event_name || '',
+                'Event Data': JSON.stringify(newEvent.event_data || {})
+              }
+            }
+          ]
+        })
+      })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`[Airtable Error] Status ${response.status}: ${errText}`);
+        } else {
+          console.log('[Airtable] Log enregistré avec succès.');
+        }
+      })
+      .catch((err) => {
+        console.error('[Airtable Connection Error]:', err);
+      });
+    }
+
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Erreur écriture log:', error);
