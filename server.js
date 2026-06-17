@@ -51,36 +51,62 @@ app.post('/api/log', (req, res) => {
     const airtableTableName = process.env.AIRTABLE_TABLE_NAME || 'Telemetry';
 
     if (airtablePat && airtableBaseId) {
-      fetch(`https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(airtableTableName)}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${airtablePat}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          records: [
-            {
-              fields: {
-                'Timestamp': newEvent.timestamp,
-                'Session ID': newEvent.session_id || '',
-                'Event Name': newEvent.event_name || '',
-                'Event Data': JSON.stringify(newEvent.event_data || {})
-              }
-            }
-          ]
+      const allFields = {
+        'Timestamp': newEvent.timestamp,
+        'Session ID': newEvent.session_id || '',
+        'Event Name': newEvent.event_name || '',
+        'Client': newEvent.client || '',
+        'Chantier': newEvent.chantier || '',
+        'Adresse': newEvent.adresse || '',
+        'Corps de métier': newEvent.corps_metier || '',
+        'Total HT': newEvent.total_ht || '',
+        'Total TTC': newEvent.total_ttc || '',
+        'Event Data': JSON.stringify(newEvent.event_data || {})
+      };
+
+      const basicFields = {
+        'Timestamp': newEvent.timestamp,
+        'Session ID': newEvent.session_id || '',
+        'Event Name': newEvent.event_name || '',
+        'Event Data': JSON.stringify({
+          client: newEvent.client,
+          chantier: newEvent.chantier,
+          adresse: newEvent.adresse,
+          corps_metier: newEvent.corps_metier,
+          total_ht: newEvent.total_ht,
+          total_ttc: newEvent.total_ttc,
+          ...newEvent.event_data
         })
-      })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error(`[Airtable Error] Status ${response.status}: ${errText}`);
-        } else {
-          console.log('[Airtable] Log enregistré avec succès.');
+      };
+
+      const sendToAirtable = async (fields, isFallback = false) => {
+        try {
+          const response = await fetch(`https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(airtableTableName)}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${airtablePat}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ records: [{ fields }] })
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            if (!isFallback && (response.status === 422 || errText.includes('UNKNOWN_FIELD_NAME') || errText.includes('invalid_field'))) {
+              console.warn('[Airtable] Colonnes avancées manquantes. Passage au mode de secours (enregistrement dans Event Data).');
+              await sendToAirtable(basicFields, true);
+            } else {
+              console.error(`[Airtable Error] Status ${response.status}: ${errText}`);
+            }
+          } else {
+            console.log(`[Airtable] Log enregistré avec succès${isFallback ? ' (mode secours)' : ''}.`);
+          }
+        } catch (err) {
+          console.error('[Airtable Connection Error]:', err);
         }
-      })
-      .catch((err) => {
-        console.error('[Airtable Connection Error]:', err);
-      });
+      };
+
+      sendToAirtable(allFields);
     }
 
     res.status(200).json({ success: true });
