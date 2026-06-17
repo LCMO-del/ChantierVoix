@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChantierVoix BE — Prototype dictée devis BTP v5</title>
+<!-- SUPABASE SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- STYLES -->
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- PDF Header -->
+  <div class="pdf-header" id="pdfHeader">
+    <h2 id="pdfEntreprise">ChantierVoix</h2>
+    <p id="pdfCoords"></p>
+    <div class="pdf-meta">
+      <div class="pdf-meta-item"><strong id="pdfNumDevis">DEV-2026-001</strong>Numéro devis</div>
+      <div class="pdf-meta-item"><strong id="pdfClient">—</strong>Client</div>
+      <div class="pdf-meta-item"><strong id="pdfChantier">—</strong>Chantier</div>
+      <div class="pdf-meta-item"><strong id="pdfDate"></strong>Date</div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>ChantierVoix <span class="badge">Belgique</span></h1>
+      <p>Prototype dictée devis BTP · Propulsé par Gemini IA · v5</p>
+    </div>
+    <div>
+      <button class="btn-params" onclick="toggleParams()">⚙ Paramètres</button>
+      <button class="btn-new" onclick="resetAll()">Nouveau devis</button>
+    </div>
+  </div>
+
+  <!-- Paramètres entreprise -->
+  <div class="params" id="paramsBox">
+    <div class="params-grid">
+      <input id="p_entreprise" placeholder="Nom de l'entreprise" />
+      <input id="p_bce" placeholder="N° BCE (ex : 0123.456.789)" />
+      <input id="p_tva_num" placeholder="N° TVA (ex : BE 0123.456.789)" />
+      <input id="p_tel" placeholder="Téléphone" />
+      <input id="p_email" placeholder="Email" />
+      <input id="p_adresse_ent" placeholder="Adresse entreprise" />
+    </div>
+    <p class="params-note">Ces informations apparaîtront sur le devis PDF exporté.</p>
+  </div>
+
+  <!-- Infos devis -->
+  <div class="grid-3">
+    <input id="f_client" placeholder="Client" oninput="updatePDFMeta()" />
+    <input id="f_chantier" placeholder="Objet / chantier" oninput="updatePDFMeta()" />
+    <input id="f_adresse" placeholder="Adresse chantier" />
+  </div>
+  <div class="grid-2">
+    <select id="f_corps">
+      <option value="">Corps de métier</option>
+      <option>Maçonnerie</option>
+      <option>Carrelage / Revêtements</option>
+      <option>Électricité</option>
+      <option>Plomberie / Sanitaire</option>
+      <option>Peinture</option>
+      <option>Charpente</option>
+      <option>Couverture / Zinguerie</option>
+      <option>Isolation</option>
+      <option>Menuiserie / Châssis</option>
+      <option>VRD / Égouttage</option>
+      <option>Démolition</option>
+      <option>Multi-corps d'état</option>
+    </select>
+    <select id="f_tva" onchange="updateTotals()">
+      <option value="0.21">TVA 21% — Taux normal</option>
+      <option value="0.06">TVA 6% — Rénovation ≥10 ans</option>
+      <option value="0.12">TVA 12% — Cas spécifiques</option>
+      <option value="0">TVA 0% — Autoliquidation B2B</option>
+    </select>
+  </div>
+
+  <!-- Suggestion TVA -->
+  <div class="tva-suggestion" id="tvaSuggestion"></div>
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="tab active" id="tabVoice" onclick="setMode('voice')">🎙 Dictée vocale</button>
+    <button class="tab" id="tabText" onclick="setMode('text')">✏️ Saisie texte</button>
+  </div>
+
+  <!-- Zone dictée vocale -->
+  <div class="voice-card" id="zoneVoice">
+    <div class="voice-inner">
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <rect id="micRect" x="7" y="2" width="10" height="13" rx="5" fill="#1a1a18"/>
+          <path id="micArc" d="M3 11c0 4.97 4.03 9 9 9s9-4.03 9-9" stroke="#1a1a18" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <line id="micL1" x1="12" y1="20" x2="12" y2="23" stroke="#1a1a18" stroke-width="1.8" stroke-linecap="round"/>
+          <line id="micL2" x1="9" y1="23" x2="15" y2="23" stroke="#1a1a18" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div style="flex:1;">
+        <div class="mic-label" id="micLabel">Cliquez pour dicter</div>
+        <div class="mic-hint" id="micHint">Parlez naturellement — fr-BE ou nl-BE selon la région sélectionnée</div>
+        <button class="btn-stop" id="btnStop" onclick="stopListening()">Arrêter l'enregistrement</button>
+      </div>
+    </div>
+    <div class="transcript-box" id="transcriptBox"></div>
+  </div>
+
+  <!-- Zone saisie texte -->
+  <div class="text-zone" id="zoneText">
+    <textarea id="manualText" rows="6"
+      placeholder="Collez ou tapez la dictée brute...
+Ex : « Fourniture et pose armoire électrique monophasé 12 départs, habitation 50m² de plus de 10 ans. Disjoncteur général bipolaire 40A. 8 disjoncteurs divisionnaires. 2 blocs différentiels 30mA. Attestation RGIE. TVA 6%. Client Dupont, rue des Lilas 12 à Charleroi. »"
+      ></textarea>
+  </div>
+
+  <!-- Bouton analyser -->
+  <button class="btn-analyze" id="btnAnalyze" onclick="analyzeWithGemini()" disabled>
+    Analyser avec Gemini
+  </button>
+
+  <!-- Erreur -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Résultats -->
+  <div class="results" id="results">
+    <div class="results-label">
+      <span>Lignes extraites par Gemini — modifiables</span>
+      <span id="numDevisLabel" style="color:#888780;font-size:11px;"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th class="r" style="width:62px;">Qté</th>
+            <th style="width:68px;">Unité</th>
+            <th class="r" style="width:80px;">Prix u. HT</th>
+            <th class="r" style="width:90px;">Total HT</th>
+            <th style="width:26px;"></th>
+          </tr>
+        </thead>
+        <tbody id="linesBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-add-line" onclick="addLine()">+ Ligne manuelle</button>
+
+    <!-- Totaux -->
+    <div class="totals">
+      <div class="total-row"><span>Total HT</span><span id="totalHT">0,00 €</span></div>
+      <div class="total-row"><span id="tvaLabel">TVA 21%</span><span id="totalTVA">0,00 €</span></div>
+      <div class="total-row main"><span>Total TTC</span><span id="totalTTC">0,00 €</span></div>
+      <div class="tva-note green" id="tvaNote6">TVA 6% applicable pour travaux de rénovation sur habitation de plus de 10 ans (Art. 1§9 Code TVA belge)</div>
+      <div class="tva-note orange" id="tvaNote0">Autoliquidation TVA — le cocontractant est redevable de la TVA (Art. 20 AR n°1)</div>
+      <div id="bceDisplay" style="font-size:10px;color:#888780;margin-top:4px;"></div>
+    </div>
+
+    <!-- Note Gemini -->
+    <div class="note-gemini" id="notesGemini"></div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn-sec" onclick="analyzeWithGemini()">+ Ajouter une dictée</button>
+      <button class="btn-pri" onclick="exportPDF()">📄 Exporter PDF</button>
+    </div>
+  </div>
+
+  <!-- Message vide -->
+  <div class="empty-msg" id="emptyMsg">
+    Cliquez le micro et dictez votre devis naturellement.<br>
+    Gemini extrait les postes, quantités, prix et infos chantier automatiquement.
+    <p class="empty-hint">Électricité · Plomberie · Maçonnerie · Carrelage · Châssis · Toiture · Isolation</p>
+  </div>
+
+</div>
+
+<!-- SCRIPTS -->
+<script src="js/telemetry.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

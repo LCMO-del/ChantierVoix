@@ -1,0 +1,88 @@
+[
+  {
+    "timestamp": "2026-06-17T12:28:48.999Z",
+    "session_id": "sess_ksna3uala",
+    "event_name": "app_opened",
+    "event_data": {}
+  },
+  {
+    "timestamp": "2026-06-17T12:30:41.207Z",
+    "session_id": "sess_ksna3uala",
+    "event_name": "prompt_analyzed",
+    "event_data": {
+      "prompt_text": "couvrir uen toiture de 40m² avec isolation",
+      "mode": "text"
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:30:41.220Z",
+    "session_id": "sess_ksna3uala",
+    "event_name": "ai_error",
+    "event_data": {
+      "error": "GEMINI_API_KEY non configurée sur le serveur Vercel"
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:33:31.177Z",
+    "session_id": "sess_609of2lc3",
+    "event_name": "app_opened",
+    "event_data": {}
+  },
+  {
+    "timestamp": "2026-06-17T12:33:44.224Z",
+    "session_id": "sess_609of2lc3",
+    "event_name": "prompt_analyzed",
+    "event_data": {
+      "prompt_text": "renovationd e toiture de 40m² avec isolation",
+      "mode": "text"
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:33:44.495Z",
+    "session_id": "sess_609of2lc3",
+    "event_name": "ai_error",
+    "event_data": {
+      "error": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods."
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:34:39.470Z",
+    "session_id": "sess_609of2lc3",
+    "event_name": "prompt_analyzed",
+    "event_data": {
+      "prompt_text": "renovationd e toiture de 40m² avec isolation",
+      "mode": "text"
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:34:39.566Z",
+    "session_id": "sess_609of2lc3",
+    "event_name": "ai_error",
+    "event_data": {
+      "error": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods."
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:34:44.764Z",
+    "session_id": "sess_mhj71tam2",
+    "event_name": "app_opened",
+    "event_data": {}
+  },
+  {
+    "timestamp": "2026-06-17T12:34:47.323Z",
+    "session_id": "sess_mhj71tam2",
+    "event_name": "prompt_analyzed",
+    "event_data": {
+      "prompt_text": "renovationd e toiture de 40m² avec isolation",
+      "mode": "text"
+    }
+  },
+  {
+    "timestamp": "2026-06-17T12:34:47.423Z",
+    "session_id": "sess_mhj71tam2",
+    "event_name": "ai_error",
+    "event_data": {
+      "error": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods."
+    }
+  }
+]
